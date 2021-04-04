@@ -19,11 +19,11 @@ import Metrica_IO as mio
 import Metrica_Viz as mviz
 import Metrica_Velocities as mvel
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
+import numpy as np
 
 # set up initial path to data
-DATADIR = '/PATH/TO/WHERE/YOU/SAVED/THE/SAMPLE/DATA'
+DATADIR = 'C:\github\sample-data\data'
 game_id = 2 # let's look at sample match 2
 
 # read in the event data

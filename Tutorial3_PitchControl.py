@@ -21,9 +21,7 @@ import Metrica_PitchControl as mpc
 import numpy as np
 
 # set up initial path to data
-DATADIR = '/PATH/TO/WHERE/YOU/SAVED/THE/SAMPLE/DATA'
-DATADIR = '/Users/laurieshaw/Documents/Football/Data/TrackingData/Metrica/sample-data-master/data'
-
+DATADIR = 'C:\github\sample-data\data'
 game_id = 2 # let's look at sample match 2
 
 # read in the event data
@@ -115,5 +113,38 @@ for p in pass_success_probability[:20]:
     outcome = events.loc[ p[0]+1 ].Type
     print( p[1], outcome )
 
+# Use the pitch control model to calculate how much space was created (or territory captured) by an off the ball run
+# Hint: consider what the pitch control surface might have looked like if the player had *not* made a run
+# I will be using the time-frame of the 8 events that lead up to the second goal of the home team (event 1118), excluding the last 3 of these 8
+# The player to be tracked is the right-back of the home team, Player 1
+PLOTDIR = DATADIR
+start_frame = events.iloc[1118-8]['Start Frame']
+end_frame = events.iloc[1118-3]['Start Frame']
+#mviz.save_match_clip(tracking_home.iloc[start_frame:end_frame],tracking_away.iloc[start_frame:end_frame],PLOTDIR,fname='player1_pitch_control',include_player_velocities=False)
+
+# Plotting the pitch control surface for event 1118-8
+start_PPCF,xgrid,ygrid = mpc.generate_pitch_control_for_event(1118-8, events, tracking_home, tracking_away, params, GK_numbers, field_dimen = (106.,68.,), n_grid_cells_x = 50)
+mviz.plot_pitchcontrol_for_event(1118-8, events,  tracking_home, tracking_away, start_PPCF, annotate=True )
+# Plotting the pitch control surface for event 1118-3
+end_PPCF,xgrid,ygrid = mpc.generate_pitch_control_for_event(1118-3, events, tracking_home, tracking_away, params, GK_numbers, field_dimen = (106.,68.,), n_grid_cells_x = 50)
+mviz.plot_pitchcontrol_for_event(1118-3, events,  tracking_home, tracking_away, end_PPCF, annotate=True )
+# Plotting the pitch control surface for event 1118-3 if Player 1 of the Home team had not made the run
+pretend_tracking_home = tracking_home
+pretend_tracking_home.at[end_frame+1,'Home_1_x'] = tracking_home.iloc[start_frame]['Home_1_x']
+pretend_tracking_home.at[end_frame+1,'Home_1_y'] = tracking_home.iloc[start_frame]['Home_1_y']
+pretend_end_PPCF,xgrid,ygrid = mpc.generate_pitch_control_for_event(1118-3, events, pretend_tracking_home, tracking_away, params, GK_numbers, field_dimen = (106.,68.,), n_grid_cells_x = 50)
+mviz.plot_pitchcontrol_for_event(1118-3, events,  pretend_tracking_home, tracking_away, pretend_end_PPCF, annotate=True )
 
 
+# Calculate the percentage of PPCF for both teams at the end frame
+end_PPCF_home = 100*((end_PPCF > 0.5).sum()) / (xgrid.shape[0] * ygrid.shape[0])
+end_PPCF_away = 100*((end_PPCF < 0.5).sum()) / (xgrid.shape[0] * ygrid.shape[0])
+print('PPCF percentages at the end frame\n'
+      'Home team: ' + str(end_PPCF_home) + '%\n'
+        'Away team: ' + str(end_PPCF_away) + '%\n')
+# Calculate the percentage of PPCF for both teams at the end frame if Player 1 had not made the run
+pretend_end_PPCF_home = 100*((pretend_end_PPCF > 0.5).sum()) / (xgrid.shape[0] * ygrid.shape[0])
+pretend_end_PPCF_away = 100*((pretend_end_PPCF < 0.5).sum()) / (xgrid.shape[0] * ygrid.shape[0])
+print('PPCF percentages at the end frame if Player 1 had not made the run\n'
+      'Home team: ' + str(pretend_end_PPCF_home) + '%\n'
+        'Away team: ' + str(pretend_end_PPCF_away) + '%\n')

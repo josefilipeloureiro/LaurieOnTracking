@@ -12,9 +12,11 @@ Data can be found at: https://github.com/metrica-sports/sample-data
 
 import Metrica_IO as mio
 import Metrica_Viz as mviz
+import pandas as pd
+import numpy as np
 
 # set up initial path to data
-DATADIR = '/PATH/TO/WHERE/YOU/SAVED/THE/SAMPLE/DATA'
+DATADIR = 'C:\github\sample-data\data'
 game_id = 2 # let's look at sample match 2
 
 # read in the event data
@@ -52,6 +54,7 @@ away_goals = away_shots[away_shots['Subtype'].str.contains('-GOAL')].copy()
 
 # Add a column event 'Minute' to the data frame
 home_goals['Minute'] = home_goals['Start Time [s]']/60.
+away_goals['Minute'] = away_goals['Start Time [s]']/60.
 
 # Plot the first goal
 fig,ax = mviz.plot_pitch()
@@ -91,4 +94,72 @@ fig,ax = mviz.plot_events( events.loc[198:198], indicators = ['Marker','Arrow'],
 goal_frame = events.loc[198]['Start Frame']
 fig,ax = mviz.plot_frame( tracking_home.loc[goal_frame], tracking_away.loc[goal_frame], figax = (fig,ax) )
 
-# END 
+# Plot the passes and shot leading up to the second goal of the home-team
+goal_index = home_goals.index[1]
+fig, ax2 = mviz.plot_events(events.loc[goal_index:goal_index], indicators = ['Marker','Arrow'], annotate=True)
+for j in range(home_goals.index[1]-3,home_goals.index[1]):
+    if events.loc[j][['End X']].isnull().values[0]:
+        fig, ax2 = mviz.plot_events(events.loc[j:j], figax=(fig,ax2), field_dimen = (106.0,68), indicators = ['Marker'], color='r', marker_style = 'o', alpha = 0.5, annotate=True)
+    else:
+        fig, ax2 = mviz.plot_events(events.loc[j:j], figax=(fig,ax2), field_dimen=(106.0, 68), indicators=['Marker','Arrow'], color='r',
+                         marker_style='o', alpha=0.5, annotate=True)
+
+# Plot the passes and shot leading up to the third goal of the home-team
+goal_index = home_goals.index[2]
+fig, ax3 = mviz.plot_events(events.loc[goal_index:goal_index], indicators = ['Marker','Arrow'], annotate=True)
+for j in range(goal_index-3,goal_index):
+    if events.loc[j][['End X']].isnull().values[0]:
+        fig, ax3 = mviz.plot_events(events.loc[j:j], figax=(fig,ax3), field_dimen=(106.0,68), indicators = ['Marker'], color='r', marker_style = 'o', alpha = 0.5, annotate=True)
+    else:
+        fig, ax3 = mviz.plot_events(events.loc[j:j], figax=(fig,ax3), field_dimen=(106.0, 68), indicators=['Marker','Arrow'], color='r',
+                         marker_style='o', alpha=0.5, annotate=True)
+
+# Plot all the shots by Player 9 of the home team. Use a different symbol and transparency (alpha) for shots that resulted in goals
+home_shots_Player9 = home_shots[home_shots['From'] == 'Player9'].copy() # create a new data frame identical to home_shots but only with the shots from Player9
+fig,ax4 = mviz.plot_pitch()
+for jj, rows in home_shots_Player9.iterrows():
+    if home_shots_Player9.loc[jj][['Subtype']].str.contains('-GOAL').values[0]:
+        fig, ax4 = mviz.plot_events(home_shots_Player9.loc[jj:jj], figax=(fig, ax4), field_dimen=(106.0, 68), indicators=['Marker', 'Arrow'], color='r', marker_style='o', alpha=1, annotate=True)
+    else:
+        fig, ax4 = mviz.plot_events(home_shots_Player9.loc[jj:jj], figax=(fig, ax4), field_dimen=(106.0, 68), indicators=['Marker', 'Arrow'], color='b', marker_style='*', alpha=0.2, annotate=True)
+
+# Plot the position of all players at Player 9's goal
+home_goals_Player9 = home_shots_Player9[home_shots_Player9['Subtype'].str.contains('-GOAL')].copy()
+goal_index = home_goals_Player9.index[0]
+fig,ax5 = mviz.plot_events(home_goals_Player9.loc[goal_index:goal_index], indicators = ['Marker','Arrow'], annotate=True)
+goal_frame = events.loc[goal_index]['Start Frame']
+fig,ax5 = mviz.plot_frame(tracking_home.loc[goal_frame], tracking_away.loc[goal_frame], figax = (fig,ax5))
+
+# Calculate how far each player ran
+tracking_home_nan20 = (tracking_home.fillna(0)).drop(columns=['Period', 'Time [s]', 'ball_x', 'ball_y']) # replacing all the NaN by 0 in this data frame and remove the columns with the specified names
+tracking_away_nan20 = (tracking_away.fillna(0)).drop(columns=['Period', 'Time [s]', 'ball_x', 'ball_y']) # replacing all the NaN by 0 in this data frame and remove the columns with the specified names
+home_dist_temp = [0]*len(tracking_home_nan20.columns)
+away_dist_temp = [0]*len(tracking_away_nan20.columns)
+k = 0
+for columnName, columnData in tracking_home_nan20.iteritems(): # for cycle to sum the distance in each axis (x and y) for each player in tracking_home_nan20
+    home_dist_temp[k] = abs(tracking_home_nan20.loc[:,columnName].diff()).fillna(0)#.sum()
+    #for rowName in range(2, len(tracking_home_nan20)):
+     #   home_dist_temp[k] = home_dist_temp[k] + abs(tracking_home_nan20.loc[rowName,columnName] - tracking_home_nan20.loc[rowName-1,columnName])
+    k = k + 1
+kk = 0
+for columnName, columnData in tracking_away_nan20.iteritems(): # for cycle to sum the distance in each axis (x and y) for each player in tracking_away_nan20
+    away_dist_temp[kk] = abs(tracking_away_nan20.loc[:, columnName].diff()).fillna(0)#.sum()
+    #for rowName in range(2, len(tracking_away_nan20)):
+     #   away_dist_temp[kk] = away_dist_temp[kk] + abs(tracking_away_nan20.loc[rowName,columnName] - tracking_away_nan20.loc[rowName-1,columnName])
+    kk = kk + 1
+
+home_dist = [0]*int(len(tracking_home_nan20.columns)/2) # initialize a list row with half the number of columns in the data frame tracking_home_nan20
+away_dist = [0]*int(len(tracking_away_nan20.columns)/2) # initialize a list row with half the number of columns in the data frame tracking_away_nan20
+
+j = 0
+for jj in range(0,len(home_dist_temp),2): # for cycle to calculate: distance = sqrt((|x_i+1 - x_i|)^2 + (|y_i+1 - y_i|)^2))
+    home_dist[j] = np.sqrt(home_dist_temp[jj]**2 + home_dist_temp[jj+1]**2).sum()
+    j = j + 1
+#home_dist = pd.DataFrame.transpose(pd.DataFrame(data = home_dist, index = tracking_home_nan20.columns[0::2])) # transform the previously initialized list in a data frame and transpose it, including the names of the even columns in tracking_home_nan20
+
+j = 0
+for jj in range(0,len(away_dist_temp),2): # for cycle to calculate: distance = sqrt((|x_i+1 - x_i|)^2 + (|y_i+1 - y_i|)^2))
+    away_dist[j] = np.sqrt(away_dist_temp[jj]**2 + away_dist_temp[jj+1]**2).sum()
+    j = j + 1
+#away_dist = pd.DataFrame.transpose(pd.DataFrame(data = away_dist, index = tracking_away_nan20.columns[0::2])) # transform the previously initialized list in a data frame and transpose it, including the names of the even columns in tracking_away_nan20
+# END
